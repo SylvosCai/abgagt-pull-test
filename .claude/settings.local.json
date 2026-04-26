@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(abapgit-agent syntax:*)",
+      "Bash(git:*)",
+      "Bash(abapgit-agent pull:*)",
+      "Bash(abapgit-agent create:*)"
+    ]
+  }
+}

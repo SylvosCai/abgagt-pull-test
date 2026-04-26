@@ -2,253 +2,144 @@
 
 You are working on an ABAP project using abapGit for version control.
 
+> **Full guide:** https://sylvoscai.github.io/abapgit-agent/pages/abap-coding-guidelines.html
+> **Agent mode:** Run `abapgit-agent guide` for the complete guide with all rules.
+
 ---
 
 ## Critical Rules
 
 ### 1. Use `ref` Command for Unfamiliar Topics
 
-**When starting to work on ANY unfamiliar ABAP topic, syntax, or pattern, you MUST use the `ref` command BEFORE writing any code.**
-
-```
-❌ WRONG: Start writing code immediately based on assumptions
-✅ CORRECT: Run ref command first to look up the correct pattern
-```
-
-**Why**: ABAP syntax is strict. Guessing leads to activation errors that waste time.
-
-| Scenario | Example |
-|----------|---------|
-| Implementing new ABAP feature | "How do I use FILTER operator?" |
-| Unfamiliar pattern | "What's the correct VALUE #() syntax?" |
-| SQL operations | "How to write a proper SELECT with JOIN?" |
-| CDS views | "How to define CDS view with associations?" |
-| Getting syntax errors | Check reference before trying approaches |
+**When starting to work on ANY unfamiliar ABAP topic, syntax, or pattern, use the `ref` command BEFORE writing any code.**
 
 ```bash
-# For CDS topics
-abapgit-agent ref --topic cds
-abapgit-agent ref "CDS view"
-abapgit-agent ref "association"
+abapgit-agent ref "CORRESPONDING"          # search by pattern
+abapgit-agent ref --topic exceptions       # browse by topic
+abapgit-agent ref --topic debug-session    # read full guideline file
+abapgit-agent ref --topic workflow-detailed
 ```
 
-```bash
-# Search for a pattern
-abapgit-agent ref "CORRESPONDING"
-abapgit-agent ref "FILTER #"
+### 2. Read `.abapGitAgent` for Folder Location and Naming Conventions
 
-# Browse by topic
-abapgit-agent ref --topic exceptions
-abapgit-agent ref --topic sql
-
-# List all topics
-abapgit-agent ref --list-topics
-```
-
-### 2. Read `.abapGitAgent` for Folder Location
-
-**Before creating ANY ABAP object file, you MUST read `.abapGitAgent` to determine the correct folder.**
-
-```
-❌ WRONG: Assume files go in "abap/" folder
-✅ CORRECT: Read .abapGitAgent to get the "folder" property value
-```
+**Before creating ANY ABAP object file, read `.abapGitAgent` to determine the correct folder.**
 
 The folder is configured in `.abapGitAgent` (property: `folder`):
 - If `folder` is `/src/` → files go in `src/` (e.g., `src/zcl_my_class.clas.abap`)
 - If `folder` is `/abap/` → files go in `abap/` (e.g., `abap/zcl_my_class.clas.abap`)
 
-### 3. Create XML Metadata for Each ABAP Object
+**Check naming conventions before creating any new object:**
+1. `guidelines/objects.local.md` ← project-specific overrides (if file exists)
+2. `abapgit-agent ref --topic objects` ← default Z/Y prefix conventions
 
-**Each ABAP object requires an XML metadata file for abapGit to understand how to handle it.**
+### 3. Create XML Metadata / Local Classes
 
-| Object Type | ABAP File (if folder=/src/) | XML File |
-|-------------|------------------------------|----------|
-| Class | `src/zcl_*.clas.abap` | `src/zcl_*.clas.xml` |
-| Interface | `src/zif_*.intf.abap` | `src/zif_*.intf.xml` |
-| Program | `src/z*.prog.abap` | `src/z*.prog.xml` |
-| Table | `src/z*.tabl.abap` | `src/z*.tabl.xml` |
-| CDS View | `src/zc_*.ddls.asddls` | `src/zc_*.ddls.xml` |
+Each ABAP object needs an XML metadata file. Local helper/test-double classes use separate `.locals_def.abap` / `.locals_imp.abap` files.
 
-**Use `ref --topic abapgit` for complete XML templates.**
-
-### 4. Use `unit` Command for Unit Tests
-
-**Use `abapgit-agent unit` to run ABAP unit tests (AUnit).**
-
-```
-❌ WRONG: Try to use SE24 or other transaction codes
-✅ CORRECT: Use abapgit-agent unit --files src/zcl_test.clas.testclasses.abap
-```
+**Name length limits** (verify before naming anything):
+- CLAS, INTF: name **30 chars** | method names: **30 chars**
+- TABL, STRU: name **30 chars** | **field names: 16 chars** ← most common mistake
+- DDLS (CDS view entity): **40 chars** | field alias: 30 | FUGR: 26 | MSAG: 20 | PROG/DTEL/DOMA/TTYP: 30
 
 ```bash
-# Run unit tests (after pulling to ABAP)
-abapgit-agent unit --files src/zcl_test.clas.testclasses.abap
+abapgit-agent ref --topic naming-limits    # full length reference
+abapgit-agent ref --topic object-creation  # XML templates and local class setup
 ```
 
-### 5. Use CDS Test Double Framework for CDS View Tests
+### 4. Use Syntax Command Before Commit (for CLAS, INTF, PROG, DDLS)
 
-**When creating unit tests for CDS views, use the CDS Test Double Framework (`CL_CDS_TEST_ENVIRONMENT`).**
-
-```
-❌ WRONG: Use regular AUnit test class without test doubles
-✅ CORRECT: Use CL_CDS_TEST_ENVIRONMENT to create test doubles for CDS views
+```bash
+abapgit-agent syntax --files src/zcl_my_class.clas.abap
 ```
 
-**Why**: CDS views read from database tables. Using test doubles allows:
-- Injecting test data without affecting production data
-- Testing specific scenarios that may not exist in production
-- Fast, isolated tests that don't depend on database state
+For dependent files (interface + class), skip `syntax` and go straight to `pull`.
 
-See `../guidelines/03_testing.md` for code examples.
+### 5. Use `ref`, `view` and `where` to Learn About Unknown Classes/Methods
+
+```bash
+abapgit-agent where --objects ZIF_UNKNOWN_INTERFACE
+abapgit-agent view --objects ZCL_UNKNOWN_CLASS
+abapgit-agent view --objects ZCL_UNKNOWN_CLASS --full --lines   # with line numbers for debugging
+```
+
+### 6. Troubleshooting
+
+```bash
+abapgit-agent dump --date TODAY --detail 1    # inspect last crash (ST22)
+abapgit-agent debug set --objects ZCL_FOO:42  # set breakpoint then attach
+abapgit-agent ref --topic debug-session       # full debug guide
+abapgit-agent ref --topic debug-dump          # dump analysis guide
+```
+
+### 7. Never Run `run` Command Proactively
+
+Never call `abapgit-agent run` unless the user explicitly asks — it can modify data or trigger RFCs.
+
+### 8. Probe and PoC Objects — Always Z/Y, Never in SAP Packages
+
+When `objects.local.md` shows SAP namespace (`CL_*`, `IF_*`, `/NAMESPACE/*`) and the user asks to create a new object, always ask first: *"Is this a production object, a PoC, or a probe?"*
+
+→ `abapgit-agent ref --topic probe-poc`
+
+### 9. abaplint — Optional, Project-Controlled
+
+Only run if `.abaplint.json` exists. Run after `syntax`, before commit. Always check `ref --topic abaplint` before applying any quickfix.
+
+```bash
+ls .abaplint.json 2>/dev/null && abapgit-agent lint
+```
 
 ---
 
 ## Development Workflow
 
-```
-1. Read .abapGitAgent → get folder value
-       │
-       ▼
-2. Research → use ref command for unfamiliar topics
-       │
-       ▼
-3. Write code → place in correct folder (e.g., src/zcl_*.clas.abap)
-       │
-       ▼
-4. Commit and push → git add . && git commit && git push
-       │
-       ▼
-5. Activate → abapgit-agent pull --files src/file.clas.abap
-       │
-       ▼
-6. Verify → Check pull output
-   - **Do NOT run inspect before commit/push/pull** - ABAP validates on pull
-   - **Do NOT run unit before pull** - Tests run against ABAP system, code must be activated first
-   - Objects NOT in "Activated Objects" but in "Failed Objects Log" → Syntax error (check inspect)
-   - Objects NOT appearing at all → XML metadata issue
-       │
-       ▼
-7. (Optional) Run unit tests → abapgit-agent unit --files src/zcl_test.clas.testclasses.abap (ONLY if test file exists, AFTER successful pull)
-       │
-       ▼
-8. If needed → Use inspect to check syntax (runs against ABAP system)
-```
+### Project-Level Config (`.abapgit-agent.json`)
 
-**IMPORTANT**:
-- **ALWAYS push to git BEFORE running pull** - abapGit reads from git
-- **Use inspect AFTER pull** to check syntax on objects already in ABAP
-- **Check pull output**:
-  - In "Failed Objects Log" → Syntax error (use inspect for details)
-  - Not appearing at all → XML metadata is wrong
+Checked into the repository — applies to all developers. **Read this file at the start of every session.**
 
-**When to use inspect vs view**:
-- **inspect**: Use when there are SYNTAX ERRORS (to find line numbers and details)
-- **view**: Use when you need to understand an object STRUCTURE (table fields, class methods)
-- Do NOT use view to debug syntax errors - view shows definitions, not errors
+| Setting | Effect |
+|---------|--------|
+| `safeguards.requireFilesForPull: true` | Always include `--files` in every `pull` |
+| `safeguards.disablePull: true` | Do not run `abapgit-agent pull` at all |
+| `safeguards.disableRun: true` | Do not run `abapgit-agent run` at all |
+| `safeguards.disableProbeClasses: true` | Use `scratchWorkspace` for probe classes instead |
+| `conflictDetection.mode: "abort"` | Abort pull on conflict — inform user |
+| `transports.allowCreate/allowRelease: false` | Blocked — inform user |
 
-### Commands
+### Workflow Mode (`.abapGitAgent` → `workflow.mode`)
+
+| Mode | Branch Strategy | Rebase Before Pull | Create PR |
+|------|----------------|-------------------|-----------|
+| `"branch"` | Feature branches | ✓ Always | ✓ Yes (squash merge) |
+| `"trunk"` / not set | Direct to default branch | ✗ No | ✗ No |
 
 ```bash
-# 1. Pull/activate after pushing to git (abapGit reads from git!)
-abapgit-agent pull --files src/zcl_class1.clas.abap,src/zcl_class2.clas.abap
-
-# 2. Inspect AFTER pull to check syntax (runs against ABAP system)
-abapgit-agent inspect --files src/zcl_class1.clas.abap,src/zif_interface1.intf.abap
-
-# Run unit tests (multiple test classes)
-abapgit-agent unit --files src/zcl_test1.clas.testclasses.abap,src/zcl_test2.clas.testclasses.abap
-
-# View object definitions (multiple objects)
-abapgit-agent view --objects ZCL_CLASS1,ZCL_CLASS2,ZIF_INTERFACE
-
-# Preview table data (multiple tables/views)
-abapgit-agent preview --objects ZTABLE1,ZTABLE2
-
-# Explore table structures
-abapgit-agent view --objects ZTABLE --type TABL
-
-# Display package tree
-abapgit-agent tree --package \$MY_PACKAGE
+# branch mode — read full guide:
+abapgit-agent ref --topic branch-workflow
 ```
 
----
+### Quick Decision Tree
 
-## Explore Unknown Objects
+```
+Modified ABAP files?
+├─ CLAS/INTF/PROG/DDLS files?
+│  ├─ Independent files?  → syntax → [abaplint] → commit → push → pull --sync-xml
+│  └─ Dependent files?    → skip syntax → [abaplint] → commit → push → pull --sync-xml
+└─ Other types (FUGR, TABL, etc.)?
+   ├─ XML-only (TABL, STRU, DTEL, TTYP, DOMA, MSAG)?
+   │  → skip syntax → [abaplint] → commit → push → pull --files <name>.tabl.xml --sync-xml
+   └─ FUGR and others?
+      → skip syntax → [abaplint] → commit → push → pull --sync-xml → (if errors: inspect)
 
-**Before working with unfamiliar objects, use `view` command:**
+[abaplint] = run lint only if .abaplint.json exists; ref --topic abaplint before any quickfix
+```
 
 ```bash
-# Check table structure
-abapgit-agent view --objects ZMY_TABLE --type TABL
-
-# Check class definition
-abapgit-agent view --objects ZCL_UNKNOWN_CLASS
-
-# Check interface
-abapgit-agent view --objects ZIF_UNKNOWN_INTERFACE
-
-# Check data element
-abapgit-agent view --objects ZMY_DTEL --type DTEL
+abapgit-agent ref --topic workflow-detailed   # full workflow decision tree
 ```
 
-AI assistant SHOULD call `view` command when:
-- User asks to "check", "look up", or "explore" an unfamiliar object
-- Working with a table/structure and you don't know the fields
-- Calling a class/interface method and you don't know the parameters
-
 ---
 
-## Key ABAP Rules
+## Project-Specific Naming Conventions
 
-1. **Global classes MUST use `PUBLIC`**:
-   ```abap
-   CLASS zcl_my_class DEFINITION PUBLIC.  " <- REQUIRED
-   ```
-
-2. **Use `/ui2/cl_json` for JSON**:
-   ```abap
-   DATA ls_data TYPE ty_request.
-   ls_data = /ui2/cl_json=>deserialize( json = lv_json ).
-   lv_json = /ui2/cl_json=>serialize( data = ls_response ).
-   ```
-
-3. **Test class name max 30 chars**: `ltcl_util` (not `ltcl_abgagt_util_test`)
-
-4. **Interface method implementation**: Use prefix `zif_interface~method_name`
-
----
-
-## Error Handling
-
-- **"Error updating where-used list"** → This is a **SYNTAX ERROR** (not a warning!)
-- Use `abapgit-agent inspect --files <file>` for detailed error messages with line numbers
-
----
-
-## Guidelines Index
-
-Detailed guidelines are available in the `guidelines/` folder:
-
-| File | Topic |
-|------|-------|
-| `../guidelines/01_sql.md` | ABAP SQL Best Practices |
-| `../guidelines/02_exceptions.md` | Exception Handling |
-| `../guidelines/03_testing.md` | Unit Testing (including CDS) |
-| `../guidelines/04_cds.md` | CDS Views |
-| `../guidelines/05_classes.md` | ABAP Classes and Objects |
-| `../guidelines/06_objects.md` | Object Naming Conventions |
-| `../guidelines/07_json.md` | JSON Handling |
-| `../guidelines/08_abapgit.md` | abapGit XML Metadata Templates |
-
-These guidelines are automatically searched by the `ref` command.
-
----
-
-## Object Naming
-
-| Pattern | Type |
-|---------|------|
-| `ZCL_*` | Class |
-| `ZIF_*` | Interface |
-| `Z*` | Other objects |
+See `guidelines/objects.local.md` for this project's naming convention overrides.
